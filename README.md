@@ -1,4 +1,7 @@
 # Project Title: Classification Model for Imbalanced Dataset
+**Problem Statement:**
+Car loan companies have to face huge losses due to loan defaults, which give rise to stricter policies and higher rejection rates which in turn affects the business negatively since the possibility of rejecting a potentially stable client also increases. Therefore, a financial institution wants us to create a credit risk scoring model that would help better asses the borrower’s possibility to default. This model will use several factors like previous credit history, financial stresses, and loan information of the loanee, to predict the possibility of the said loanee to default on his first installment.
+
 **Overview**
 This project aimed to develop a classification model for predicting outcomes on an imbalanced dataset. We explored multiple machine learning techniques, including Logistic Regression, Decision Trees, and Random Forests, with a focus on handling the imbalance using the Synthetic Minority Over-sampling Technique (SMOTE). The objective was to identify a model that provides the best accuracy, particularly for the minority class (Class 1).
 
@@ -73,6 +76,7 @@ Despite tuning, the decision tree model showed limited improvement for Class 1. 
 
 **Feature Importance:**
 Important features were determined using the average impurity reduction across the trees in the Random Forest. Features such as employment_status, credit_score, and age were identified as the most significant.
+
 **Findings:**
 The tuned Random Forest model reduced overfitting compared to the initial model, improving generalization to the test set. However, it still struggled with recall for Class 1, highlighting a persistent challenge with the minority class.
 Although the tuned model showed slight improvements in precision for Class 1, recall remained low, indicating that the model was still biased towards the majority class.
