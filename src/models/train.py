@@ -51,20 +51,34 @@ def prepare_data(config):
     
     return X_train, X_test, y_train, y_test
 
-def train_model(model, model_name, X_train, y_train, X_test, y_test, config):
-    """Train and log model with MLflow"""
-    logger.info(f"Training {model_name}")
+def train_model_with_tuning(model, model_name, param_grid, X_train, y_train, X_test, y_test, config):
+    """Train model with hyperparameter tuning and log with MLflow"""
+    logger.info(f"Training {model_name} with hyperparameter tuning")
     
-    with mlflow.start_run(run_name=model_name):
-        # Log parameters
-        mlflow.log_params(model.get_params())
+    with mlflow.start_run(run_name=f"{model_name}_Tuned"):
+        # GridSearchCV with F1 scoring
+        grid_search = GridSearchCV(
+            model, 
+            param_grid, 
+            cv=5, 
+            scoring='f1',
+            n_jobs=-1,
+            verbose=1
+        )
         
-        # Train model
-        model.fit(X_train, y_train)
+        # Fit grid search
+        grid_search.fit(X_train, y_train)
+        
+        # Best model
+        best_model = grid_search.best_estimator_
+        
+        # Log best parameters
+        mlflow.log_params(grid_search.best_params_)
+        mlflow.log_metric("cv_best_score", grid_search.best_score_)
         
         # Predictions
-        y_train_pred = model.predict(X_train)
-        y_test_pred = model.predict(X_test)
+        y_train_pred = best_model.predict(X_train)
+        y_test_pred = best_model.predict(X_test)
         
         # Calculate metrics
         train_metrics = {
@@ -82,9 +96,9 @@ def train_model(model, model_name, X_train, y_train, X_test, y_test, config):
         }
         
         # ROC AUC if predict_proba available
-        if hasattr(model, 'predict_proba'):
-            y_train_proba = model.predict_proba(X_train)[:, 1]
-            y_test_proba = model.predict_proba(X_test)[:, 1]
+        if hasattr(best_model, 'predict_proba'):
+            y_train_proba = best_model.predict_proba(X_train)[:, 1]
+            y_test_proba = best_model.predict_proba(X_test)[:, 1]
             train_metrics['train_roc_auc'] = roc_auc_score(y_train, y_train_proba)
             test_metrics['test_roc_auc'] = roc_auc_score(y_test, y_test_proba)
         
@@ -92,11 +106,13 @@ def train_model(model, model_name, X_train, y_train, X_test, y_test, config):
         mlflow.log_metrics({**train_metrics, **test_metrics})
         
         # Log model
-        mlflow.sklearn.log_model(model, "model")
+        mlflow.sklearn.log_model(best_model, "model")
         
+        logger.info(f"{model_name} - CV Best F1: {grid_search.best_score_:.4f}")
         logger.info(f"{model_name} - Test Accuracy: {test_metrics['test_accuracy']:.4f}, Test F1: {test_metrics['test_f1']:.4f}")
+        logger.info(f"{model_name} - Best Params: {grid_search.best_params_}")
         
-        return model, test_metrics
+        return best_model, test_metrics
 
 def main():
     """Main training pipeline"""
@@ -128,18 +144,46 @@ def main():
     
     logger.info(f"After SMOTE - Train shape: {X_train_smote.shape}")
     
-    # Define models
-    models = {
-        'Logistic Regression': LogisticRegression(**config['models']['logistic_regression']),
-        'Random Forest': RandomForestClassifier(**config['models']['random_forest']),
-        'Decision Tree': DecisionTreeClassifier(**config['models']['decision_tree'])
+    # Define models with parameter grids
+    models_config = {
+        'Logistic Regression': {
+            'model': LogisticRegression(**config['models']['logistic_regression']),
+            'param_grid': {
+                'C': [0.01, 0.1, 1, 10],
+                'penalty': ['l1', 'l2'],
+                'solver': ['liblinear', 'saga'],
+                'class_weight': [None, 'balanced']
+            }
+        },
+        'Random Forest': {
+            'model': RandomForestClassifier(**config['models']['random_forest']),
+            'param_grid': {
+                'n_estimators': [100, 200, 300],
+                'max_depth': [10, 20, 30, None],
+                'min_samples_split': [2, 5, 10],
+                'min_samples_leaf': [1, 2, 4],
+                'class_weight': [None, 'balanced']
+            }
+        },
+        'Decision Tree': {
+            'model': DecisionTreeClassifier(**config['models']['decision_tree']),
+            'param_grid': {
+                'max_depth': [5, 10, 20, 30, None],
+                'min_samples_split': [2, 5, 10],
+                'min_samples_leaf': [1, 2, 4],
+                'criterion': ['gini', 'entropy'],
+                'class_weight': [None, 'balanced']
+            }
+        }
     }
     
-    # Train all models
+    # Train all models with tuning
     results = {}
-    for model_name, model in models.items():
-        trained_model, metrics = train_model(
-            model, model_name,
+    for model_name, model_config in models_config.items():
+        trained_model, metrics = train_model_with_tuning(
+            model_config['model'], 
+            model_name,
+            model_config['param_grid'],
             X_train_smote, y_train_smote,
             X_test_processed, y_test,
             config
