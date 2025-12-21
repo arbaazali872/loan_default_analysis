@@ -1,0 +1,55 @@
+data:
+  raw_path: "data/raw/car_loan.csv"
+  processed_path: "data/processed/"
+  test_size: 0.4
+  random_state: 42
+
+preprocessing:
+  numeric_imputer_strategy: "median"
+  categorical_imputer_strategy: "constant"
+  categorical_fill_value: "missing"
+
+feature_engineering:
+  log_transform_features:
+    - disbursed_amount
+    - asset_cost
+    - pri_current_balance
+    - pri_sanctioned_amount
+    - pri_disbursed_amount
+    - sec_current_balance
+    - sec_sanctioned_amount
+    - sec_disbursed_amount
+    - primary_instal_amt
+    - sec_instal_amt
+    - pri_no_of_accts
+    - pri_active_accts
+    - pri_overdue_accts
+    - sec_no_of_accts
+    - sec_active_accts
+    - sec_overdue_accts
+    - no_of_inquiries
+
+smote:
+  sampling_strategy: 0.5
+  random_state: 42
+
+models:
+  logistic_regression:
+    max_iter: 1000
+    random_state: 42
+  
+  random_forest:
+    n_estimators: 100
+    random_state: 42
+    
+  decision_tree:
+    random_state: 42
+
+mlflow:
+  experiment_name: "loan_default_prediction"
+  tracking_uri: "mlruns"
+
+artifacts:
+  model_path: "models/"
+  preprocessor_filename: "preprocessor.pkl"
+  model_filename: "model.pkl"
