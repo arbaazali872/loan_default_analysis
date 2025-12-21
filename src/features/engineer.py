@@ -38,7 +38,12 @@ def apply_log_transform(df: pd.DataFrame, features: list) -> pd.DataFrame:
     
     for feature in features:
         if feature in df.columns:
+            # Replace negative values with 0 before log transform
+            df[feature] = df[feature].clip(lower=0)
+            # Apply log1p which handles 0 values safely
             df[feature] = np.log1p(df[feature])
+            # Replace any remaining inf/-inf with NaN (will be imputed later)
+            df[feature] = df[feature].replace([np.inf, -np.inf], np.nan)
     
     return df
 
