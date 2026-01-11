@@ -1,90 +1,238 @@
-# Project Title: Classification Model for Imbalanced Dataset
-**Problem Statement:**
-Car loan companies have to face huge losses due to loan defaults, which give rise to stricter policies and higher rejection rates which in turn affects the business negatively since the possibility of rejecting a potentially stable client also increases. Therefore, a financial institution wants us to create a credit risk scoring model that would help better asses the borrower’s possibility to default. This model will use several factors like previous credit history, financial stresses, and loan information of the loanee, to predict the possibility of the said loanee to default on his first installment.
+# Loan Default Prediction
 
-**Overview**
-This project aimed to develop a classification model for predicting outcomes on an imbalanced dataset. We explored multiple machine learning techniques, including Logistic Regression, Decision Trees, and Random Forests, with a focus on handling the imbalance using the Synthetic Minority Over-sampling Technique (SMOTE). The objective was to identify a model that provides the best accuracy, particularly for the minority class (Class 1).
+End-to-end ML pipeline for car loan default prediction with hyperparameter tuning, MLflow experiment tracking, FastAPI REST API, and Docker deployment.
 
-**Methods**
+## Problem Statement
 
-**Data Preprocessing**
+Car loan companies face significant losses due to loan defaults, leading to stricter policies and higher rejection rates that negatively impact business by potentially rejecting stable clients. This project develops a credit risk scoring model to assess borrowers' probability of defaulting on their first installment. The model uses credit history, financial indicators, and loan information to predict default risk, enabling better lending decisions.
 
-- **Imputation**: Missing values in numerical features were imputed using the median strategy, while categorical features were filled with a constant value ('missing').
-- **Scaling and Encoding**: Numerical features were standardized using StandardScaler, and categorical features were encoded using OneHotEncoder.
-- **SMOTE**: Applied SMOTE to the training data to balance the representation of the minority class.
+## Tech Stack
 
-**Model Development**
+- **Python 3.11+**
+- **ML/Data**: scikit-learn, pandas, numpy, imbalanced-learn (SMOTE)
+- **Experiment Tracking**: MLflow
+- **API**: FastAPI, Uvicorn, Pydantic
+- **Deployment**: Docker, Docker Compose
+- **Visualization**: matplotlib, seaborn
 
-Models were trained using a pipeline that included data preprocessing, SMOTE, and the classifier itself. GridSearchCV was employed for hyperparameter tuning to optimize each model's performance.
+## Project Structure
 
-**Results**
+```
+loan-default-prediction/
+├── api/                # FastAPI application
+│   ├── __init__.py
+│   └── main.py        # API endpoints
+├── config/             # Configuration files
+│   └── config.yaml
+├── data/
+│   ├── raw/           # Raw data files (car_loan.csv)
+│   └── processed/     # Processed data
+├── src/               # Source code
+│   ├── data/          # Data loading and preprocessing
+│   ├── features/      # Feature engineering
+│   ├── models/        # Model training and prediction
+│   └── utils/         # Utility functions (logging)
+├── models/            # Saved models and artifacts
+├── mlruns/            # MLflow tracking data
+├── notebooks/         # Jupyter notebooks for exploration
+├── Dockerfile
+├── docker-compose.yml
+└── requirements.txt
+```
 
-**1. Logistic Regression**
-- Training Accuracy: 0.761
-- Test Accuracy: 0.759
-- Confusion Matrix (Test Data):
-    - Class 0: Precision = 0.80, Recall = 0.93
-    - Class 1: Precision = 0.29, Recall = 0.13
+## Model Performance
 
-**Feature Importance:**
-Coefficients of the logistic regression model were used to identify important features. Some features, such as age and income, had relatively higher coefficients indicating a stronger influence on predictions.
+Multiple models were evaluated using GridSearchCV for hyperparameter tuning:
 
-**Findings**:
-Logistic Regression provided a balanced performance but struggled with the minority class, achieving a low recall for Class 1.
-Feature importance highlighted that certain demographic features played a more significant role in the classification process.
+| Model | Test Accuracy | Test Precision (Class 1) | Test Recall (Class 1) |
+|-------|---------------|--------------------------|----------------------|
+| Logistic Regression | 0.759 | 0.29 | 0.13 |
+| Decision Tree (Tuned) | 0.768 | 0.33 | 0.07 |
+| Random Forest (Tuned) | 0.773 | 0.36 | 0.06 |
 
-**2. Decision Tree**
-**Initial Model:**
-- Training Accuracy: 0.9995
-- Test Accuracy: 0.6461
-- Confusion Matrix (Test Data):
-    - Class 0: Precision = 0.79, Recall = 0.74
-    - Class 1: Precision = 0.25, Recall = 0.31
+**Final Model Selection**: Despite lower raw accuracy, the best-performing model is selected based on F1 score and cross-validation results, prioritizing balanced performance on the imbalanced dataset.
 
-**Findings:**
-The initial decision tree model overfitted on the training data, achieving near-perfect accuracy but performed poorly on the test set, especially for Class 1.
+### Key Findings
 
-**Tuned Model:**
-- Training Accuracy: 0.7734
-- Test Accuracy: 0.7678
-- Confusion Matrix (Test Data):
-    - Class 0: Precision = 0.79, Recall = 0.96
-    - Class 1: Precision = 0.33, Recall = 0.07
+- Applied SMOTE to handle severe class imbalance
+- Feature engineering improved model performance (ID verification scores, loan burden ratios, credit stability metrics)
+- Hyperparameter tuning with GridSearchCV optimized model performance
+- All models struggled with minority class recall, highlighting the challenge of predicting loan defaults
 
-**Feature Importance**:
-Important features were determined based on the Gini importance from the decision tree. Features such as job_type and loan_amount were among the most influential.
+## Setup & Installation
 
-**Findings**:
-Despite tuning, the decision tree model showed limited improvement for Class 1. The model’s performance was skewed towards the majority class.
+### Prerequisites
 
-**3. Random Forest**
-**Initial Model:**
-- Training Accuracy: 1.00
-- Test Accuracy: 0.7721
-- Confusion Matrix (Test Data):
-    - Class 0: Precision = 0.79, Recall = 0.97
-    - Class 1: Precision = 0.31, Recall = 0.04
-**Findings:**
-- The initial Random Forest model overfitted significantly on the training data, with near-perfect precision and recall, but it struggled on the test set, particularly with the minority class.
-- The model’s high complexity led to overfitting, as evidenced by the stark contrast between training and test accuracies.
-**Tuned Model:**
-- Training Accuracy: 0.9140
-- Test Accuracy: 0.7730
-- Confusion Matrix (Test Data):
-    - Class 0: Precision = 0.79, Recall = 0.97
-    - Class 1: Precision = 0.36, Recall = 0.06
+- Python 3.11+
+- Docker (optional, for containerized deployment)
+- Git
 
-**Feature Importance:**
-Important features were determined using the average impurity reduction across the trees in the Random Forest. Features such as employment_status, credit_score, and age were identified as the most significant.
+### 1. Clone Repository
 
-**Findings:**
-The tuned Random Forest model reduced overfitting compared to the initial model, improving generalization to the test set. However, it still struggled with recall for Class 1, highlighting a persistent challenge with the minority class.
-Although the tuned model showed slight improvements in precision for Class 1, recall remained low, indicating that the model was still biased towards the majority class.
+```bash
+git clone <repository-url>
+cd loan-default-prediction
+```
 
-**Conclusions**
-After evaluating Logistic Regression, Decision Trees, and Random Forests, the models struggled to achieve satisfactory performance for the minority class (Class 1). Logistic Regression, despite its simplicity, provided the best balance between precision and recall across both classes. Therefore, it was selected as the final model because it managed the class imbalance better than more complex models like Decision Trees and Random Forests.
+### 2. Create Virtual Environment
 
-The feature importance analysis across all models consistently identified key demographic and financial attributes as influential in predicting outcomes, suggesting a targeted focus on these features for potential future improvements.
+```bash
+python -m venv venv
 
-The final decision to use Logistic Regression was driven by its overall balanced performance, ease of interpretation, and resilience against overfitting observed in more complex models.
+# Windows
+venv\Scripts\activate
 
+# Linux/Mac
+source venv/bin/activate
+```
+
+### 3. Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Data Setup
+
+Place your `car_loan.csv` file in the `data/raw/` directory.
+
+## Usage
+
+### Training Models
+
+Train models with hyperparameter tuning and MLflow tracking:
+
+```bash
+python -m src.models.train
+```
+
+This will:
+- Load and preprocess data
+- Apply feature engineering
+- Train Logistic Regression, Random Forest, and Decision Tree with GridSearchCV
+- Log experiments to MLflow
+- Save the best model to `models/`
+
+Training time: 30-60 minutes depending on hardware.
+
+### View MLflow Experiments
+
+Start the MLflow UI to view experiment tracking, compare models, and analyze metrics:
+
+```bash
+mlflow ui
+```
+
+Access at: `http://localhost:5000`
+
+The UI shows:
+- All experiment runs with parameters and metrics
+- Model comparison charts
+- Logged artifacts and models
+- Performance visualizations
+
+### Run API Locally
+
+Start the FastAPI server:
+
+```bash
+python api/main.py
+```
+
+Or using uvicorn:
+
+```bash
+uvicorn api.main:app --host 0.0.0.0 --port 8000
+```
+
+Access:
+- **API**: `http://localhost:8000`
+- **Interactive Docs**: `http://localhost:8000/docs`
+- **Health Check**: `http://localhost:8000/health`
+
+### Docker Deployment
+
+#### Using Docker Compose (Recommended)
+
+```bash
+# Build and start
+docker-compose up --build
+
+# Run in detached mode
+docker-compose up -d
+
+# Stop
+docker-compose down
+```
+
+#### Using Docker Directly
+
+```bash
+# Build image
+docker build -t loan-default-api .
+
+# Run container
+docker run -d \
+  -p 8000:8000 \
+  -v $(pwd)/models:/app/models \
+  -v $(pwd)/config:/app/config \
+  --name loan-default-api \
+  loan-default-api
+```
+
+#### View Container Logs
+
+```bash
+# Docker Compose
+docker-compose logs -f
+
+# Docker
+docker logs -f loan-default-api
+```
+
+## Configuration
+
+Model and pipeline settings can be adjusted in `config/config.yaml`:
+
+- Data paths and split ratios
+- Preprocessing strategies
+- SMOTE parameters
+- Model hyperparameters
+- MLflow settings
+
+## MLflow Integration
+
+MLflow tracks:
+- **Parameters**: Model hyperparameters, preprocessing config
+- **Metrics**: Accuracy, precision, recall, F1, ROC-AUC for train/test sets
+- **Models**: Serialized models with versioning
+- **Artifacts**: Preprocessors, feature lists
+
+Models can be registered in MLflow Model Registry for production deployment.
+
+## Requirements
+
+### Model Files
+
+The API requires trained model artifacts in `models/`:
+- `model.pkl` - Trained classifier
+- `preprocessor.pkl` - Fitted preprocessing pipeline
+
+These are generated automatically after running training.
+
+### Data
+
+Training requires `car_loan.csv` in `data/raw/` with columns:
+- Loan details (amount, asset cost, LTV)
+- Customer info (DOB, employment type)
+- Credit history (account ages, balances, scores)
+- Verification flags (Aadhar, PAN, etc.)
+- Target variable: `loan_default`
+
+## Future Improvements
+
+- Implement model monitoring and drift detection
+- Add A/B testing framework
+- Automated retraining pipeline
+- Extended API authentication
+- Performance optimization for large-scale deployment
