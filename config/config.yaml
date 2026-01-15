@@ -3,6 +3,9 @@ data:
   processed_path: "data/processed/"
   test_size: 0.4
   random_state: 42
+  sample_size: 0.3
+
+prediction_threshold: 0.35
 
 preprocessing:
   numeric_imputer_strategy: "median"
@@ -30,7 +33,7 @@ feature_engineering:
     - no_of_inquiries
 
 smote:
-  sampling_strategy: 0.5
+  sampling_strategy: 0.3
   random_state: 42
 
 models:
@@ -43,6 +46,10 @@ models:
     random_state: 42
     
   decision_tree:
+    random_state: 42
+  xgboost:
+    n_estimators: 100
+    learning_rate: 0.1
     random_state: 42
 
 mlflow:

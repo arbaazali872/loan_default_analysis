@@ -7,9 +7,11 @@ from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
+from xgboost import XGBClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
 from imblearn.pipeline import Pipeline
 from imblearn.over_sampling import SMOTE
+import numpy as np
 
 from src.data import load_raw_data, clean_column_names, remove_id_columns, create_preprocessor
 from src.features import create_derived_features, apply_log_transform, drop_correlated_features
@@ -24,7 +26,7 @@ def load_config(config_path: str = "config/config.yaml"):
     return config
 
 def prepare_data(config):
-    """Load and prepare data"""
+    """Load and prepare data with stratified sampling"""
     logger.info("Starting data preparation")
     
     # Load data
@@ -41,11 +43,25 @@ def prepare_data(config):
     X = df.drop(columns=['uniqueid', 'loan_default'], errors='ignore')
     y = df['loan_default']
     
+    # STRATIFIED SAMPLING - Keep 30% of data
+    sample_size = config['data'].get('sample_size', 0.3)
+    if sample_size < 1.0:
+        logger.info(f"Applying stratified sampling: {sample_size*100}% of data")
+        X_sampled, _, y_sampled, _ = train_test_split(
+            X, y,
+            train_size=sample_size,
+            stratify=y,
+            random_state=config['data']['random_state']
+        )
+        X, y = X_sampled, y_sampled
+        logger.info(f"After sampling: {X.shape[0]} rows, Default rate: {y.mean():.4f}")
+    
     # Split data
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, 
         test_size=config['data']['test_size'],
-        random_state=config['data']['random_state']
+        random_state=config['data']['random_state'],
+        stratify=y
     )
     
     logger.info(f"Data prepared. Train shape: {X_train.shape}, Test shape: {X_test.shape}")
@@ -84,9 +100,19 @@ def train_model_with_tuning(model_name, model, param_grid, X_train, y_train, X_t
     
     best_model = grid_search.best_estimator_
     
-    # Predictions and metrics
-    y_test_pred = best_model.predict(X_test)
-    y_train_pred = best_model.predict(X_train)
+    # Get prediction threshold from config
+    threshold = config.get('prediction_threshold', 0.5)
+    
+    # Predictions with custom threshold
+    if hasattr(best_model, 'predict_proba'):
+        y_train_proba = best_model.predict_proba(X_train)[:, 1]
+        y_test_proba = best_model.predict_proba(X_test)[:, 1]
+        
+        y_train_pred = (y_train_proba >= threshold).astype(int)
+        y_test_pred = (y_test_proba >= threshold).astype(int)
+    else:
+        y_train_pred = best_model.predict(X_train)
+        y_test_pred = best_model.predict(X_test)
     
     train_metrics = {
         'train_accuracy': accuracy_score(y_train, y_train_pred),
@@ -103,14 +129,13 @@ def train_model_with_tuning(model_name, model, param_grid, X_train, y_train, X_t
     }
     
     if hasattr(best_model, 'predict_proba'):
-        y_train_proba = best_model.predict_proba(X_train)[:, 1]
-        y_test_proba = best_model.predict_proba(X_test)[:, 1]
         train_metrics['train_roc_auc'] = roc_auc_score(y_train, y_train_proba)
         test_metrics['test_roc_auc'] = roc_auc_score(y_test, y_test_proba)
     
     # Log with MLflow
     with mlflow.start_run(run_name=f"{model_name}_Tuned"):
         mlflow.log_params(grid_search.best_params_)
+        mlflow.log_param("prediction_threshold", threshold)
         mlflow.log_metric("cv_best_score", grid_search.best_score_)
         mlflow.log_metrics({**train_metrics, **test_metrics})
         mlflow.sklearn.log_model(best_model, "model")
@@ -133,8 +158,26 @@ def main():
     # Prepare data
     X_train, X_test, y_train, y_test = prepare_data(config)
     
+    # Calculate scale_pos_weight for XGBoost
+    scale_pos_weight = (y_train == 0).sum() / (y_train == 1).sum()
+    logger.info(f"Calculated scale_pos_weight: {scale_pos_weight:.2f}")
+    
     # Define models with parameter grids
     models_config = {
+        'XGBoost': {
+            'model': XGBClassifier(
+                scale_pos_weight=scale_pos_weight,
+                random_state=config['data']['random_state'],
+                eval_metric='logloss'
+            ),
+            'param_grid': {
+                'model__max_depth': [3, 5, 7],
+                'model__learning_rate': [0.01, 0.1, 0.3],
+                'model__n_estimators': [100, 200],
+                'model__min_child_weight': [1, 3, 5],
+                'model__subsample': [0.8, 1.0]
+            }
+        },
         'Logistic Regression': {
             'model': LogisticRegression(max_iter=1000),
             'param_grid': {
@@ -144,7 +187,19 @@ def main():
                 'model__class_weight': [None, 'balanced']
             }
         },
-        # Add other models here if needed
+        'Random Forest': {
+            'model': RandomForestClassifier(
+                class_weight='balanced',
+                random_state=config['data']['random_state'],
+                n_jobs=2
+            ),
+            'param_grid': {
+                'model__n_estimators': [100, 200],
+                'model__max_depth': [10, 20, None],
+                'model__min_samples_split': [2, 5],
+                'model__min_samples_leaf': [1, 2]
+            }
+        },
     }
     
     results = {}
