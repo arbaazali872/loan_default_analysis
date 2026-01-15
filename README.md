@@ -50,7 +50,6 @@ Multiple models were evaluated using GridSearchCV for hyperparameter tuning:
 | Decision Tree (Tuned) | 0.768 | 0.33 | 0.07 |
 | Random Forest (Tuned) | 0.773 | 0.36 | 0.06 |
 
-**Final Model Selection**: Despite lower raw accuracy, the best-performing model is selected based on F1 score and cross-validation results, prioritizing balanced performance on the imbalanced dataset.
 
 ### Key Findings
 
@@ -70,7 +69,7 @@ Multiple models were evaluated using GridSearchCV for hyperparameter tuning:
 ### 1. Clone Repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/arbaazali872/loan_default_analysis
 cd loan-default-prediction
 ```
 
@@ -94,6 +93,7 @@ pip install -r requirements.txt
 
 ### 4. Data Setup
 
+Download car_loan dataset from: https://drive.google.com/file/d/1q1kZYypePCXZF94tTEv0oS7LUqJHY0yn/view?usp=drive_link
 Place your `car_loan.csv` file in the `data/raw/` directory.
 
 ## Usage
@@ -200,39 +200,3 @@ Model and pipeline settings can be adjusted in `config/config.yaml`:
 - Model hyperparameters
 - MLflow settings
 
-## MLflow Integration
-
-MLflow tracks:
-- **Parameters**: Model hyperparameters, preprocessing config
-- **Metrics**: Accuracy, precision, recall, F1, ROC-AUC for train/test sets
-- **Models**: Serialized models with versioning
-- **Artifacts**: Preprocessors, feature lists
-
-Models can be registered in MLflow Model Registry for production deployment.
-
-## Requirements
-
-### Model Files
-
-The API requires trained model artifacts in `models/`:
-- `model.pkl` - Trained classifier
-- `preprocessor.pkl` - Fitted preprocessing pipeline
-
-These are generated automatically after running training.
-
-### Data
-
-Training requires `car_loan.csv` in `data/raw/` with columns:
-- Loan details (amount, asset cost, LTV)
-- Customer info (DOB, employment type)
-- Credit history (account ages, balances, scores)
-- Verification flags (Aadhar, PAN, etc.)
-- Target variable: `loan_default`
-
-## Future Improvements
-
-- Implement model monitoring and drift detection
-- Add A/B testing framework
-- Automated retraining pipeline
-- Extended API authentication
-- Performance optimization for large-scale deployment
