@@ -94,7 +94,7 @@ Final results after stratified sampling (30%), SMOTE (0.3), and threshold tuning
 ### 1. Clone Repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/arbaazali872/loan_default_analysis
 cd loan-default-prediction
 ```
 
