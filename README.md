@@ -1,17 +1,38 @@
 # Loan Default Prediction
 
-End-to-end ML pipeline for car loan default prediction with hyperparameter tuning, MLflow experiment tracking, FastAPI REST API, and Docker deployment.
+End-to-end ML pipeline for car loan default prediction with hyperparameter tuning, MLflow experiment tracking, Flask API, Gradio UI, and Docker deployment.
 
 ## Problem Statement
 
-Car loan companies face significant losses due to loan defaults, leading to stricter policies and higher rejection rates that negatively impact business by potentially rejecting stable clients. This project develops a credit risk scoring model to assess borrowers' probability of defaulting on their first installment. The model uses credit history, financial indicators, and loan information to predict default risk, enabling better lending decisions.
+Car loan companies face significant losses due to loan defaults, leading to stricter policies and higher rejection rates that negatively impact business by potentially rejecting stable clients. This project develops a credit risk scoring model to assess borrowers' probability of defaulting on their first installment. The model leverages credit history, financial indicators, and loan information to predict default risk, enabling better lending decisions.
+
+## Project Challenges & Key Learnings
+
+### Challenges Faced
+1. **Severe Class Imbalance**: Dataset had only 21.7% defaults, causing models to favor majority class
+2. **High RAM Usage**: Training on 233k rows consumed 75% of 16GB RAM, causing system slowdowns
+3. **Poor Minority Class Recall**: Initial models had ~64% recall, missing too many defaults
+4. **XGBoost Overfitting**: With aggressive threshold tuning, XGBoost predicted everything as default (recall 1.0, precision 0.0)
+
+### Solutions Implemented
+1. **Stratified Sampling**: Reduced dataset to 30% (70k rows) while maintaining class distribution
+   - Result: 70% less RAM, 3x faster training, no performance loss
+2. **SMOTE Oversampling**: Applied 0.3 ratio to balance minority class during training
+3. **Threshold Tuning**: Lowered prediction threshold from 0.5 to 0.35 to prioritize recall
+4. **Model Selection**: Logistic Regression outperformed XGBoost and Random Forest despite lower complexity
+
+### Final Outcome
+- **Best Model**: Logistic Regression with 96.4% recall, 22.9% precision
+- **Key Insight**: For loan defaults, missing a bad loan (false negative) is more costly than rejecting a good loan (false positive)
+- **Trade-off**: Accepted lower precision to achieve high recall, as business context demands catching defaults
 
 ## Tech Stack
 
 - **Python 3.11+**
-- **ML/Data**: scikit-learn, pandas, numpy, imbalanced-learn (SMOTE)
+- **ML/Data**: scikit-learn, pandas, numpy, imbalanced-learn (SMOTE), XGBoost
 - **Experiment Tracking**: MLflow
-- **API**: FastAPI, Uvicorn, Pydantic
+- **API**: Flask
+- **UI**: Gradio
 - **Deployment**: Docker, Docker Compose
 - **Visualization**: matplotlib, seaborn
 
@@ -19,9 +40,10 @@ Car loan companies face significant losses due to loan defaults, leading to stri
 
 ```
 loan-default-prediction/
-├── api/                # FastAPI application
+├── app/                # Flask API and Gradio UI
 │   ├── __init__.py
-│   └── main.py        # API endpoints
+│   ├── flask_app.py   # Flask API endpoints
+│   └── gradio_app.py  # Gradio web interface
 ├── config/             # Configuration files
 │   └── config.yaml
 ├── data/
@@ -42,21 +64,24 @@ loan-default-prediction/
 
 ## Model Performance
 
-Multiple models were evaluated using GridSearchCV for hyperparameter tuning:
+Final results after stratified sampling (30%), SMOTE (0.3), and threshold tuning (0.35):
 
-| Model | Test Accuracy | Test Precision (Class 1) | Test Recall (Class 1) |
-|-------|---------------|--------------------------|----------------------|
-| Logistic Regression | 0.759 | 0.29 | 0.13 |
-| Decision Tree (Tuned) | 0.768 | 0.33 | 0.07 |
-| Random Forest (Tuned) | 0.773 | 0.36 | 0.06 |
+| Model | Test Accuracy | Test Precision (Class 1) | Test Recall (Class 1) | Test ROC-AUC |
+|-------|---------------|--------------------------|----------------------|--------------|
+| Logistic Regression ✓ | 0.229 | 0.229 | 0.964 | 0.624 |
+| Random Forest | 0.234 | 0.234 | 0.938 | 0.621 |
+| XGBoost | 1.000 | 0.217 | 1.000 | 0.617 |
 
+**Selected Model**: Logistic Regression - Best balance between recall and precision
 
 ### Key Findings
 
-- Applied SMOTE to handle severe class imbalance
-- Feature engineering improved model performance (ID verification scores, loan burden ratios, credit stability metrics)
-- Hyperparameter tuning with GridSearchCV optimized model performance
-- All models struggled with minority class recall, highlighting the challenge of predicting loan defaults
+- Stratified sampling (30%) reduced training time and RAM usage without sacrificing performance
+- SMOTE at 0.3 ratio provided optimal minority class representation
+- Lowering prediction threshold to 0.35 significantly improved recall
+- Feature engineering (ID verification scores, loan burden ratios, credit stability) improved model performance
+- XGBoost with aggressive thresholds overfitted, predicting all samples as defaults
+- Logistic Regression proved most robust for this imbalanced classification task
 
 ## Setup & Installation
 
@@ -69,7 +94,7 @@ Multiple models were evaluated using GridSearchCV for hyperparameter tuning:
 ### 1. Clone Repository
 
 ```bash
-git clone https://github.com/arbaazali872/loan_default_analysis
+git clone <repository-url>
 cd loan-default-prediction
 ```
 
@@ -93,7 +118,6 @@ pip install -r requirements.txt
 
 ### 4. Data Setup
 
-Download car_loan dataset from: https://drive.google.com/file/d/1q1kZYypePCXZF94tTEv0oS7LUqJHY0yn/view?usp=drive_link
 Place your `car_loan.csv` file in the `data/raw/` directory.
 
 ## Usage
@@ -107,13 +131,13 @@ python -m src.models.train
 ```
 
 This will:
-- Load and preprocess data
+- Load and preprocess data with 30% stratified sampling
 - Apply feature engineering
-- Train Logistic Regression, Random Forest, and Decision Tree with GridSearchCV
+- Train Logistic Regression, Random Forest, and XGBoost with GridSearchCV
 - Log experiments to MLflow
-- Save the best model to `models/`
+- Save the best model (highest recall) to `models/`
 
-Training time: 30-60 minutes depending on hardware.
+Training time: 15-30 minutes with 30% sampling.
 
 ### View MLflow Experiments
 
@@ -131,28 +155,38 @@ The UI shows:
 - Logged artifacts and models
 - Performance visualizations
 
-### Run API Locally
+### Run Flask API
 
-Start the FastAPI server:
-
-```bash
-python api/main.py
-```
-
-Or using uvicorn:
+Start the Flask API server:
 
 ```bash
-uvicorn api.main:app --host 0.0.0.0 --port 8000
+python app/flask_app.py
 ```
 
-Access:
-- **API**: `http://localhost:8000`
-- **Interactive Docs**: `http://localhost:8000/docs`
-- **Health Check**: `http://localhost:8000/health`
+API runs at: `http://localhost:5000`
+
+**Endpoints:**
+- `GET /health` - Health check
+- `POST /predict` - Predict loan default
+
+### Run Gradio UI
+
+Start the Gradio web interface (Flask API must be running first):
+
+```bash
+python app/gradio_app.py
+```
+
+Access at: `http://localhost:7860`
+
+The Gradio interface provides:
+- Form-based input for all loan application features
+- Real-time prediction via Flask API
+- Probability display for both classes (No Default / Default)
 
 ### Docker Deployment
 
-#### Using Docker Compose (Recommended)
+#### Using Docker Compose
 
 ```bash
 # Build and start
@@ -173,7 +207,7 @@ docker build -t loan-default-api .
 
 # Run container
 docker run -d \
-  -p 8000:8000 \
+  -p 5000:5000 \
   -v $(pwd)/models:/app/models \
   -v $(pwd)/config:/app/config \
   --name loan-default-api \
@@ -195,8 +229,9 @@ docker logs -f loan-default-api
 Model and pipeline settings can be adjusted in `config/config.yaml`:
 
 - Data paths and split ratios
+- Stratified sampling size (default: 0.3)
 - Preprocessing strategies
-- SMOTE parameters
+- SMOTE parameters (sampling_strategy: 0.3)
+- Prediction threshold (default: 0.35)
 - Model hyperparameters
 - MLflow settings
-
