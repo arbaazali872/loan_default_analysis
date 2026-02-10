@@ -34,7 +34,7 @@ Car loan companies face significant losses due to loan defaults, leading to stri
 - **API**: Flask
 - **UI**: Gradio
 - **Deployment**: Docker, Docker Compose
-- **Visualization**: matplotlib, seaborn
+- **Visualization**: matplotlib, seaborn 
 
 ## Project Structure
 
@@ -68,9 +68,9 @@ Final results after stratified sampling (30%), SMOTE (0.3), and threshold tuning
 
 | Model | Test Accuracy | Test Precision (Class 1) | Test Recall (Class 1) | Test ROC-AUC |
 |-------|---------------|--------------------------|----------------------|--------------|
-| Logistic Regression ✓ | 0.229 | 0.229 | 0.964 | 0.624 |
-| Random Forest | 0.234 | 0.234 | 0.938 | 0.621 |
-| XGBoost | 1.000 | 0.217 | 1.000 | 0.617 |
+| Logistic Regression ✓ | 0.323 | 0.235 | 0.940 | 0.630 |
+| Random Forest | 0.335 | 0.237 | 0.929 | 0.631 |
+| XGBoost | 0.217 | 0.217 | 1.000 | 0.617 |
 
 **Selected Model**: Logistic Regression - Best balance between recall and precision
 
@@ -80,7 +80,8 @@ Final results after stratified sampling (30%), SMOTE (0.3), and threshold tuning
 - SMOTE at 0.3 ratio provided optimal minority class representation
 - Lowering prediction threshold to 0.35 significantly improved recall
 - Feature engineering (ID verification scores, loan burden ratios, credit stability) improved model performance
-- XGBoost with aggressive thresholds overfitted, predicting all samples as defaults
+- XGBoost collapsed into a degenerate model, predicting all samples as default due to combined effect of scale_pos_weight, SMOTE, and low threshold. Recall 1.0 with precision equal to the dataset's default rate (21.7%)
+- Pure recall maximization in model selection risks picking degenerate models; a minimum precision threshold of 0.22 was added to filter them out
 - Logistic Regression proved most robust for this imbalanced classification task
 
 ## Setup & Installation

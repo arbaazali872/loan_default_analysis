@@ -6,7 +6,6 @@ from pathlib import Path
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.tree import DecisionTreeClassifier
 from xgboost import XGBClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
 from imblearn.pipeline import Pipeline
@@ -171,19 +170,19 @@ def main():
                 eval_metric='logloss'
             ),
             'param_grid': {
-                'model__max_depth': [3, 5, 7],
-                'model__learning_rate': [0.01, 0.1, 0.3],
-                'model__n_estimators': [100, 200],
-                'model__min_child_weight': [1, 3, 5],
-                'model__subsample': [0.8, 1.0]
+                'model__max_depth': [3, 5],
+                'model__learning_rate': [0.01, 0.1],
+                'model__n_estimators': [100],
+                'model__min_child_weight': [1, 3],
+                'model__subsample': [0.8]
             }
         },
         'Logistic Regression': {
             'model': LogisticRegression(max_iter=1000),
             'param_grid': {
-                'model__C': [0.01, 0.1, 1, 10],
-                'model__penalty': ['l1', 'l2'],
-                'model__solver': ['liblinear', 'saga'],
+                'model__C': [0.1, 1],
+                'model__penalty': ['l2'],
+                'model__solver': ['liblinear'],
                 'model__class_weight': [None, 'balanced']
             }
         },
@@ -194,10 +193,10 @@ def main():
                 n_jobs=2
             ),
             'param_grid': {
-                'model__n_estimators': [100, 200],
-                'model__max_depth': [10, 20, None],
+                'model__n_estimators': [100],
+                'model__max_depth': [10, 20],
                 'model__min_samples_split': [2, 5],
-                'model__min_samples_leaf': [1, 2]
+                'model__min_samples_leaf': [1]
             }
         },
     }
@@ -214,20 +213,32 @@ def main():
         )
         results[model_name] = {'model': trained_model, 'metrics': metrics}
     
-    # Save best model and preprocessor
-    best_model_name = max(results, key=lambda x: results[x]['metrics']['test_recall'])
+    # Select best model: highest recall among models that meet minimum precision threshold
+    # Pure recall maximization risks selecting degenerate models that predict all positives
+    MIN_PRECISION = config.get('min_precision_threshold', 0.22)
+    valid_results = {
+        k: v for k, v in results.items()
+        if v['metrics']['test_precision'] >= MIN_PRECISION
+    }
+
+    if not valid_results:
+        logger.warning("No models met the minimum precision threshold. Falling back to all models.")
+        valid_results = results
+
+    best_model_name = max(valid_results, key=lambda x: valid_results[x]['metrics']['test_recall'])
     best_model = results[best_model_name]['model']
-    
-    logger.info(f"Best model: {best_model_name}")
+
+    logger.info(f"Best model: {best_model_name} "
+                f"(recall={results[best_model_name]['metrics']['test_recall']:.4f}, "
+                f"precision={results[best_model_name]['metrics']['test_precision']:.4f})")
     
     # Save artifacts
     model_dir = Path(config['artifacts']['model_path'])
     model_dir.mkdir(parents=True, exist_ok=True)
-    
-    joblib.dump(best_model.named_steps['preprocessor'], model_dir / config['artifacts']['preprocessor_filename'])
+
     joblib.dump(best_model, model_dir / config['artifacts']['model_filename'])
     
-    logger.info(f"Model and preprocessor saved to {model_dir}")
+    logger.info(f"Model saved to {model_dir}")
 
 if __name__ == "__main__":
     main()

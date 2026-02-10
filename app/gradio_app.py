@@ -1,7 +1,7 @@
 import gradio as gr
 import requests
 
-FLASK_API = "http://localhost:5000/predict"
+FLASK_API = "http://localhost:5001/predict"
 
 def predict_loan_default(
     disbursed_amount, asset_cost, ltv,
