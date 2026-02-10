@@ -164,7 +164,7 @@ Start the Flask API server:
 python app/flask_app.py
 ```
 
-API runs at: `http://localhost:5000`
+API runs at: `http://localhost:5001`
 
 **Endpoints:**
 - `GET /health` - Health check
